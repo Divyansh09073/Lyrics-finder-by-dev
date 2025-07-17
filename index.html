@@ -1,201 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lyrics Finder</title>
-  <style>
-    :root {
-      --bg: #121212;
-      --primary: #1db954;
-      --text: #ffffff;
-      --muted: #b3b3b3;
-    }
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
-        Arial, sans-serif;
-    }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 1.5rem;
-    }
-    .card {
-      width: 100%;
-      max-width: 600px;
-      background: #1e1e1e;
-      border-radius: 1rem;
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
-      padding: 2rem 1.5rem 3rem;
-      text-align: center;
-    }
-    h1 {
-      font-size: 1.75rem;
-      margin-bottom: 1.25rem;
-      letter-spacing: 0.5px;
-    }
-    form {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1.75rem;
-    }
-    input[type="text"] {
-      flex: 1;
-      padding: 0.75rem 1rem;
-      border: none;
-      border-radius: 0.5rem;
-      font-size: 1rem;
-      outline: none;
-      background: #2a2a2a;
-      color: var(--text);
-    }
-    button {
-      background: var(--primary);
-      border: none;
-      padding: 0 1.25rem;
-      font-size: 1rem;
-      border-radius: 0.5rem;
-      color: var(--text);
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-    button:hover,
-    button:focus {
-      background: #17a84a;
-    }
-    .cover {
-      width: 100%;
-      max-width: 320px;
-      border-radius: 0.75rem;
-      margin: 0 auto 1.25rem;
-      display: none;
-    }
-    #songTitle {
-      font-size: 1.25rem;
-      margin-bottom: 1rem;
-    }
-    pre {
-      white-space: pre-wrap;
-      text-align: left;
-      background: #111;
-      padding: 1.25rem;
-      border-radius: 0.75rem;
-      line-height: 1.6;
-      max-height: 50vh;
-      overflow-y: auto;
-      color: var(--muted);
-    }
-    .hidden { display: none; }
-    .loader {
-      border: 4px solid rgba(255,255,255,0.2);
-      border-top: 4px solid var(--primary);
-      border-radius: 50%;
-      width: 42px;
-      height: 42px;
-      animation: spin 1s linear infinite;
-      margin: 2rem auto 0;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    .watermark { margin-top: 1.5rem; font-size: 0.85rem; color: var(--muted); }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Lyrics Finder</title>
+<style>
+  body { background:#121212; color:#fff; font-family:Arial,sans-serif; display:flex; justify-content:center; padding:2rem; }
+  .card { background:#1e1e1e; padding:2rem; border-radius:1rem; width:100%; max-width:600px; }
+  input { width:70%; padding:0.75rem; border:none; border-radius:0.5rem; margin-right:0.5rem; }
+  button { padding:0.75rem 1.5rem; background:#1db954; border:none; border-radius:0.5rem; cursor:pointer; color:#fff; }
+  img { display:block; max-width:300px; margin:1rem auto; border-radius:0.75rem; }
+  pre { background:#111; padding:1rem; border-radius:0.5rem; max-height:50vh; overflow:auto; white-space:pre-wrap; }
+  .watermark { text-align:center; margin-top:1.5rem; color:#b3b3b3; }
+</style>
 </head>
 <body>
-  <div class="card">
-    <h1>Lyrics Finder 🎵</h1>
-    <form id="searchForm">
-      <input id="songInput" type="text" placeholder="Song name…" required />
-      <button type="submit">Search</button>
-    </form>
+<div class="card">
+  <h1>Lyrics Finder 🎵</h1>
+  <form id="searchForm">
+    <input id="songInput" type="text" placeholder="Enter song name…" required />
+    <button type="submit">Search</button>
+  </form>
+  <img id="cover" alt="Cover Art" style="display:none"/>
+  <h2 id="songTitle"></h2>
+  <pre id="lyrics"></pre>
+  <p class="watermark">Made by Divyansh ❤️</p>
+</div>
 
-    <div id="loader" class="loader hidden"></div>
+<script>
+const apiBase = window.location.origin + '/api/lyrics?q=';
+const form = document.getElementById('searchForm');
+const songInput = document.getElementById('songInput');
+const coverEl = document.getElementById('cover');
+const titleEl = document.getElementById('songTitle');
+const lyricsEl = document.getElementById('lyrics');
 
-    <img id="cover" class="cover" alt="Cover art" />
-    <h2 id="songTitle"></h2>
-    <pre id="lyrics"></pre>
-    <p class="watermark">Made by Divyansh ❤️</p>
-  </div>
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const query = encodeURIComponent(songInput.value.trim());
+  if (!query) return;
+  titleEl.textContent = 'Loading...';
+  lyricsEl.textContent = '';
+  coverEl.style.display = 'none';
 
-  <script>
-    const form = document.getElementById("searchForm");
-    const songInput = document.getElementById("songInput");
-    const loader = document.getElementById("loader");
-    const resultCover = document.getElementById("cover");
-    const resultTitle = document.getElementById("songTitle");
-    const resultLyrics = document.getElementById("lyrics");
+  try {
+    const res = await fetch(apiBase + query);
+    const data = await res.json();
+    const lyrics = data.lyrics || data.result?.lyrics || 'No lyrics found.';
+    const title = (data.title || data.result?.title || songInput.value);
+    const artist = data.artist || data.result?.artist || '';
+    titleEl.textContent = artist ? `${title} — ${artist}` : title;
+    lyricsEl.textContent = lyrics;
 
-    const showLoader = (show = true) => {
-      loader.classList.toggle("hidden", !show);
-    };
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const query = songInput.value.trim();
-      if (!query) return;
-
-      // Reset UI
-      resultCover.style.display = "none";
-      resultTitle.textContent = "";
-      resultLyrics.textContent = "";
-      showLoader(true);
-
-      try {
-        // —— 1️⃣  Get Lyrics —— //
-        const lyricsRes = await fetch(
-          `https://iamtkm.vercel.app/search/lyrics?q=${encodeURIComponent(query)}`
-        );
-        if (!lyricsRes.ok) throw new Error("Lyrics not found. Try another song 🙏");
-        const lyricsData = await lyricsRes.json();
-
-        // Flexible parsing (API fields may vary)
-        const lyrics =
-          lyricsData.lyrics || lyricsData.result?.lyrics || "Lyrics unavailable.";
-        const title =
-          lyricsData.title || lyricsData.result?.title || query;
-        const artist =
-          lyricsData.artist || lyricsData.result?.artist || "";
-        let coverUrl =
-          lyricsData.albumArt || lyricsData.cover || lyricsData.thumbnail || "";
-
-        // —— 2️⃣  If no cover from API → fallback to iTunes —— //
-        if (!coverUrl) {
-          const itunesRes = await fetch(
-            `https://itunes.apple.com/search?term=${encodeURIComponent(
-              title + " " + artist
-            )}&entity=song&limit=1`
-          );
-          if (itunesRes.ok) {
-            const itData = await itunesRes.json();
-            if (itData.resultCount) {
-              coverUrl = itData.results[0].artworkUrl100.replace(
-                /100x100bb(\.jpg|\.png)/,
-                "500x500bb$1"
-              );
-            }
-          }
-        }
-
-        // —— 3️⃣  Update UI —— //
-        if (coverUrl) {
-          resultCover.src = coverUrl;
-          resultCover.style.display = "block";
-        }
-        resultTitle.textContent = artist ? `${title} — ${artist}` : title;
-        resultLyrics.textContent = lyrics || "Lyrics not found.";
-      } catch (err) {
-        alert(err.message);
-      } finally {
-        showLoader(false);
+    let cover = data.albumArt || data.cover || data.thumbnail;
+    if (!cover) {
+      const itunes = await (await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`)).json();
+      if (itunes.resultCount) {
+        cover = itunes.results[0].artworkUrl100.replace(/100x100bb/, '500x500bb');
       }
-    });
-  </script>
+    }
+    if (cover) {
+      coverEl.src = cover;
+      coverEl.style.display = 'block';
+    }
+  } catch (err) {
+    titleEl.textContent = 'Error';
+    lyricsEl.textContent = 'Failed to fetch lyrics.';
+  }
+});
+</script>
 </body>
 </html>
