@@ -1,73 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Lyrics Finder</title>
-<style>
-  body { background:#121212; color:#fff; font-family:Arial,sans-serif; display:flex; justify-content:center; padding:2rem; }
-  .card { background:#1e1e1e; padding:2rem; border-radius:1rem; width:100%; max-width:600px; }
-  input { width:70%; padding:0.75rem; border:none; border-radius:0.5rem; margin-right:0.5rem; }
-  button { padding:0.75rem 1.5rem; background:#1db954; border:none; border-radius:0.5rem; cursor:pointer; color:#fff; }
-  img { display:block; max-width:300px; margin:1rem auto; border-radius:0.75rem; }
-  pre { background:#111; padding:1rem; border-radius:0.5rem; max-height:50vh; overflow:auto; white-space:pre-wrap; }
-  .watermark { text-align:center; margin-top:1.5rem; color:#b3b3b3; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lyrics Finder 🎵</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(120deg, #ff9a9e, #fad0c4);
+      margin: 0;
+      padding: 2rem;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2.5rem;
+    }
+
+    #form {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+
+    input[type="text"] {
+      padding: 0.5rem 1rem;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 8px;
+      width: 60%;
+      max-width: 500px;
+    }
+
+    button {
+      padding: 0.5rem 1.5rem;
+      font-size: 1.1rem;
+      background-color: #ff6f91;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      margin-left: 0.5rem;
+      cursor: pointer;
+    }
+
+    #lyrics-container {
+      background-color: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      max-width: 800px;
+      margin: auto;
+      white-space: pre-wrap;
+    }
+
+    #song-title {
+      font-size: 1.8rem;
+      margin-bottom: 0.3rem;
+    }
+
+    #artist {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      color: #555;
+    }
+
+    #cover {
+      max-width: 100%;
+      margin-bottom: 1rem;
+      border-radius: 12px;
+    }
+
+    .loading {
+      text-align: center;
+      font-size: 1.2rem;
+    }
+  </style>
 </head>
 <body>
-<div class="card">
-  <h1>Lyrics Finder 🎵</h1>
-  <form id="searchForm">
-    <input id="songInput" type="text" placeholder="Enter song name…" required />
-    <button type="submit">Search</button>
-  </form>
-  <img id="cover" alt="Cover Art" style="display:none"/>
-  <h2 id="songTitle"></h2>
-  <pre id="lyrics"></pre>
-  <p class="watermark">Made by Divyansh ❤️</p>
-</div>
+  <h1>🎶 Lyrics Finder</h1>
 
-<script>
-const apiBase = window.location.origin + '/api/lyrics?q=';
-const form = document.getElementById('searchForm');
-const songInput = document.getElementById('songInput');
-const coverEl = document.getElementById('cover');
-const titleEl = document.getElementById('songTitle');
-const lyricsEl = document.getElementById('lyrics');
+  <div id="form">
+    <input type="text" id="query" placeholder="Enter song name e.g. Khaab..." />
+    <button onclick="searchLyrics()">Search</button>
+  </div>
 
-form.addEventListener('submit', async e => {
-  e.preventDefault();
-  const query = encodeURIComponent(songInput.value.trim());
-  if (!query) return;
-  titleEl.textContent = 'Loading...';
-  lyricsEl.textContent = '';
-  coverEl.style.display = 'none';
+  <div id="lyrics-container" style="display:none;">
+    <img id="cover" />
+    <div id="song-title"></div>
+    <div id="artist"></div>
+    <div id="lyrics"></div>
+  </div>
 
-  try {
-    const res = await fetch(apiBase + query);
-    const data = await res.json();
-    const lyrics = data.lyrics || data.result?.lyrics || 'No lyrics found.';
-    const title = (data.title || data.result?.title || songInput.value);
-    const artist = data.artist || data.result?.artist || '';
-    titleEl.textContent = artist ? `${title} — ${artist}` : title;
-    lyricsEl.textContent = lyrics;
+  <div id="loading" class="loading" style="display: none;">Fetching lyrics...</div>
 
-    let cover = data.albumArt || data.cover || data.thumbnail;
-    if (!cover) {
-      const itunes = await (await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`)).json();
-      if (itunes.resultCount) {
-        cover = itunes.results[0].artworkUrl100.replace(/100x100bb/, '500x500bb');
+  <script>
+    async function searchLyrics() {
+      const query = document.getElementById("query").value.trim();
+      if (!query) return alert("Please enter a song name.");
+
+      document.getElementById("lyrics-container").style.display = "none";
+      document.getElementById("loading").style.display = "block";
+
+      try {
+        const res = await fetch(`/api/lyrics?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+
+        if (data.error) throw new Error(data.error);
+
+        document.getElementById("cover").src = data.coverImage || "";
+        document.getElementById("cover").style.display = data.coverImage ? "block" : "none";
+        document.getElementById("song-title").innerText = data.title || "";
+        document.getElementById("artist").innerText = `By: ${data.artist || "Unknown"}`;
+        document.getElementById("lyrics").innerText = data.lyrics || "Lyrics not found.";
+
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("lyrics-container").style.display = "block";
+      } catch (err) {
+        document.getElementById("loading").style.display = "none";
+        alert("Error: " + err.message);
       }
     }
-    if (cover) {
-      coverEl.src = cover;
-      coverEl.style.display = 'block';
-    }
-  } catch (err) {
-    titleEl.textContent = 'Error';
-    lyricsEl.textContent = 'Failed to fetch lyrics.';
-  }
-});
-</script>
+  </script>
 </body>
 </html>
